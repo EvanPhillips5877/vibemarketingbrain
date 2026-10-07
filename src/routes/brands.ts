@@ -9,8 +9,8 @@ import type { AdapterRegistry } from "../channels/registry.js";
 import type { Db } from "../db/client.js";
 import { isoDay } from "../ingest/metrics.js";
 import { syncBrand } from "../ingest/sync.js";
+import { slugSchema } from "./brandParam.js";
 
-const slugSchema = z.string().regex(/^[a-z0-9-]{1,64}$/);
 const windowSchema = z.object({ days: z.coerce.number().int().min(1).max(90).default(30) });
 
 export function brandsRouter(db: Db, registry: AdapterRegistry): Router {

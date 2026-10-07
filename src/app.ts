@@ -10,6 +10,7 @@ import type { Db } from "./db/client.js";
 import { aiClientFor, type AiClient } from "./ai/client.js";
 import { AdapterRegistry } from "./channels/registry.js";
 import { brandsRouter } from "./routes/brands.js";
+import { analysisRouter } from "./routes/analysis.js";
 import { factsRouter } from "./routes/facts.js";
 import { meRouter } from "./routes/me.js";
 
@@ -48,7 +49,9 @@ export function createApp(deps: AppDeps): Express {
   app.use(authRouter({ config, db, identity }));
   app.use(meRouter(config));
   app.use(brandsRouter(db, deps.registry ?? new AdapterRegistry(config)));
-  app.use(factsRouter(db, deps.ai ?? aiClientFor(db, config.anthropicApiKey)));
+  const ai = deps.ai ?? aiClientFor(db, config.anthropicApiKey);
+  app.use(factsRouter(db, ai));
+  app.use(analysisRouter(db, ai));
 
   app.all("/api/{*rest}", (_req, res) => {
     res.status(404).json({ error: "not found" });

@@ -9,27 +9,20 @@ import { checkCopy } from "../brands/compliance.js";
 import { crawlBrandSite } from "../brands/crawler.js";
 import { extractFacts } from "../brands/extract.js";
 import { acceptFact, createFact, editFact, FactNotFound, listFacts, rejectFact } from "../brands/facts.js";
-import { getBrand } from "../brands/queries.js";
 import type { Db } from "../db/client.js";
+import { brandOr404 } from "./brandParam.js";
 import { brandPages } from "../db/schema.js";
 
-const slugSchema = z.string().regex(/^[a-z0-9-]{1,64}$/);
 const idSchema = z.string().uuid();
 
 export function factsRouter(db: Db, ai: AiClient): Router {
   const router = Router();
 
-  const brandOr404 = async (slugRaw: unknown, res: import("express").Response) => {
-    const slug = slugSchema.safeParse(slugRaw);
-    const detail = slug.success ? await getBrand(db, slug.data) : null;
-    if (!detail) res.status(404).json({ error: "not found" });
-    return detail;
-  };
   const actor = (res: import("express").Response) => `manual:${currentUser(res)!.user.email}`;
 
   router.get("/api/brands/:slug/facts", requireUser, async (req, res, next) => {
     try {
-      const d = await brandOr404(req.params["slug"], res);
+      const d = await brandOr404(db, req.params["slug"], res);
       if (!d) return;
       const pages = await db.select({ url: brandPages.url, title: brandPages.title, httpStatus: brandPages.httpStatus, fetchedAt: brandPages.fetchedAt }).from(brandPages).where(eq(brandPages.brandId, d.brand.id)).orderBy(brandPages.url);
       res.json({ facts: await listFacts(db, d.brand.id), pages, aiIsMock: ai.isMock });
@@ -40,7 +33,7 @@ export function factsRouter(db: Db, ai: AiClient): Router {
 
   router.post("/api/brands/:slug/facts", requireUser, async (req, res, next) => {
     try {
-      const d = await brandOr404(req.params["slug"], res);
+      const d = await brandOr404(db, req.params["slug"], res);
       if (!d) return;
       res.status(201).json({ fact: await createFact(db, d.brand.id, actor(res), req.body) });
     } catch (err) {
@@ -60,7 +53,7 @@ export function factsRouter(db: Db, ai: AiClient): Router {
 
   router.patch("/api/brands/:slug/facts/:id", requireUser, async (req, res, next) => {
     try {
-      const d = await brandOr404(req.params["slug"], res);
+      const d = await brandOr404(db, req.params["slug"], res);
       if (!d) return;
       const id = idSchema.safeParse(req.params["id"]);
       const body = factAction.safeParse(req.body);
@@ -93,7 +86,7 @@ export function factsRouter(db: Db, ai: AiClient): Router {
   // `proposed` rows here.
   router.post("/api/brands/:slug/crawl", requireUser, async (req, res, next) => {
     try {
-      const d = await brandOr404(req.params["slug"], res);
+      const d = await brandOr404(db, req.params["slug"], res);
       if (!d) return;
       const crawled = await crawlBrandSite(db, d.brand);
       // Extract from what this crawl fetched, nothing older.
@@ -112,7 +105,7 @@ export function factsRouter(db: Db, ai: AiClient): Router {
 
   router.get("/api/brands/:slug/brief", requireUser, async (req, res, next) => {
     try {
-      const d = await brandOr404(req.params["slug"], res);
+      const d = await brandOr404(db, req.params["slug"], res);
       if (!d) return;
       res.type("text/markdown").send(renderBrief(d.brand.name, d.brand.website, await listFacts(db, d.brand.id)));
     } catch (err) {
@@ -122,7 +115,7 @@ export function factsRouter(db: Db, ai: AiClient): Router {
 
   router.post("/api/brands/:slug/compliance", requireUser, async (req, res, next) => {
     try {
-      const d = await brandOr404(req.params["slug"], res);
+      const d = await brandOr404(db, req.params["slug"], res);
       if (!d) return;
       const body = z.object({ text: z.string().min(1).max(10_000) }).safeParse(req.body);
       if (!body.success) {

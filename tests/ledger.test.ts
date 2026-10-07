@@ -73,12 +73,12 @@ describe("ledger and the Today/Campaigns API", () => {
 
   it("counts an event by the brand's local day, not the UTC day", async () => {
     // 23:30 in Toronto on the 10th is 03:30 UTC on the 11th.
-    await db.insert(customerEvents).values({ brandId: brand!.id, externalCustomerId: "late-night", stage: "registered", occurredAt: new Date("2026-09-11T03:30:00Z"), firstTouch: {}, attributionMethod: "unattributed" });
-    const tenth = await brandSummary(db, brand!.id, { from: "2026-09-10", to: "2026-09-10", timezone: "America/Toronto" });
-    const eleventh = await brandSummary(db, brand!.id, { from: "2026-09-11", to: "2026-09-11", timezone: "America/Toronto" });
+    await db.insert(customerEvents).values({ brandId: brand!.id, externalCustomerId: "late-night", stage: "registered", occurredAt: new Date("2020-09-11T03:30:00Z"), firstTouch: {}, attributionMethod: "unattributed" });
+    const tenth = await brandSummary(db, brand!.id, { from: "2020-09-10", to: "2020-09-10", timezone: "America/Toronto" });
+    const eleventh = await brandSummary(db, brand!.id, { from: "2020-09-11", to: "2020-09-11", timezone: "America/Toronto" });
     expect(tenth.totals.registered).toBe(1);
     expect(eleventh.totals.registered).toBe(0);
-    const utc = await brandSummary(db, brand!.id, { from: "2026-09-11", to: "2026-09-11", timezone: "UTC" });
+    const utc = await brandSummary(db, brand!.id, { from: "2020-09-11", to: "2020-09-11", timezone: "UTC" });
     expect(utc.totals.registered).toBe(1);
     await db.delete(customerEvents).where(eq(customerEvents.externalCustomerId, "late-night"));
   });

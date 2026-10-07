@@ -132,6 +132,86 @@ export interface CampaignRow {
   cacMicros: number | null;
 }
 
+export interface AdRow extends CampaignRow {
+  campaignExtObjectId: string | null;
+  campaignName: string | null;
+  frequency: number | null; // spend-weighted mean of daily frequency, when the platform reports it
+}
+
+/** One row per ad with its own metrics and the campaign it belongs to. */
+export async function adsTable(db: Db, brandId: string, w: Window): Promise<AdRow[]> {
+  const rows = await db.execute(sql`
+    with objs as (
+      select o.*, a.channel
+      from ${extObjects} o
+      join ${channelAccounts} a on a.id = o.channel_account_id
+      where a.brand_id = ${brandId}
+    ),
+    lineage as (
+      select ad.id as ad_id, c.id as campaign_id, c.name as campaign_name
+      from objs ad
+      left join objs g on g.kind = 'ad_group' and g.channel_account_id = ad.channel_account_id and g.external_id = ad.parent_external_id
+      left join objs c on c.kind = 'campaign' and c.channel_account_id = g.channel_account_id and c.external_id = g.parent_external_id
+      where ad.kind = 'ad'
+    ),
+    m as (
+      select md.ext_object_id,
+             coalesce(sum(md.spend_micros), 0)::bigint as spend,
+             coalesce(sum(md.impressions), 0)::int as impressions,
+             coalesce(sum(md.clicks), 0)::int as clicks,
+             coalesce(sum((md.platform_conversions->>'registration')::int), 0)::int as conversions,
+             case when sum(case when md.frequency is not null then md.spend_micros end) > 0
+                  then sum(md.frequency * md.spend_micros) / sum(case when md.frequency is not null then md.spend_micros end) end as frequency
+      from ${metricsDaily} md
+      where md.date >= ${w.from} and md.date <= ${w.to}
+      group by md.ext_object_id
+    ),
+    ev as (
+      select e.attributed_ext_object_id as ad_id,
+             count(*) filter (where e.stage = 'registered')::int as registered,
+             count(*) filter (where e.stage = 'paid')::int as paid
+      from ${customerEvents} e
+      where e.brand_id = ${brandId} and e.attributed_ext_object_id is not null
+        and e.occurred_at >= ${dayStart(w)} and e.occurred_at < ${dayEnd(w)}
+      group by 1
+    )
+    select ad.id, ad.channel, ad.external_id, ad.name, ad.status, ad.daily_budget_micros, l.campaign_id, l.campaign_name,
+           coalesce(m.spend, 0)::bigint as spend, coalesce(m.impressions, 0)::int as impressions, coalesce(m.clicks, 0)::int as clicks,
+           coalesce(m.conversions, 0)::int as conversions, m.frequency, coalesce(ev.registered, 0)::int as registered, coalesce(ev.paid, 0)::int as paid
+    from objs ad
+    join lineage l on l.ad_id = ad.id
+    left join m on m.ext_object_id = ad.id
+    left join ev on ev.ad_id = ad.id
+    where ad.kind = 'ad'
+    order by spend desc, ad.name
+  `);
+  return (rows.rows as Record<string, unknown>[]).map((r) => {
+    const spend = Number(r["spend"]);
+    const registered = Number(r["registered"]);
+    const paid = Number(r["paid"]);
+    return {
+      extObjectId: String(r["id"]),
+      channel: r["channel"] as Channel,
+      isMock: r["channel"] === "mock",
+      externalId: String(r["external_id"]),
+      name: (r["name"] as string | null) ?? null,
+      status: (r["status"] as string | null) ?? null,
+      dailyBudgetMicros: r["daily_budget_micros"] === null ? null : Number(r["daily_budget_micros"]),
+      campaignExtObjectId: (r["campaign_id"] as string | null) ?? null,
+      campaignName: (r["campaign_name"] as string | null) ?? null,
+      spendMicros: spend,
+      impressions: Number(r["impressions"]),
+      clicks: Number(r["clicks"]),
+      platformConversions: Number(r["conversions"]),
+      frequency: r["frequency"] === null || r["frequency"] === undefined ? null : Number(r["frequency"]),
+      registered,
+      paid,
+      cpaMicros: ratio(spend, registered),
+      cacMicros: ratio(spend, paid),
+    };
+  });
+}
+
 /** One row per campaign, metrics rolled up from its ads (ad → ad group → campaign by external parent id). */
 export async function campaignsTable(db: Db, brandId: string, w: Window): Promise<CampaignRow[]> {
   const rows = await db.execute(sql`

@@ -1,3 +1,4 @@
+import { aiClientFor } from "./ai/client.js";
 import { createApp } from "./app.js";
 import { AdapterRegistry } from "./channels/registry.js";
 import { loadConfig } from "./config.js";
@@ -9,7 +10,8 @@ loadDotEnv();
 const config = loadConfig();
 const handle = createDb(config.databaseUrl);
 const registry = new AdapterRegistry(config);
-const app = createApp({ config, db: handle.db, registry });
+const ai = aiClientFor(handle.db, config.anthropicApiKey);
+const app = createApp({ config, db: handle.db, registry, ai });
 
 const server = app.listen(config.port, () => {
   const mocks = Object.entries(config.mock)
@@ -20,7 +22,7 @@ const server = app.listen(config.port, () => {
   );
 });
 
-const boss = config.jobsEnabled ? await startJobs(config.databaseUrl, handle.db, registry) : null;
+const boss = config.jobsEnabled ? await startJobs(config.databaseUrl, handle.db, registry, ai) : null;
 if (boss) console.log("[jobs] scheduler running");
 
 async function shutdown(signal: string): Promise<void> {

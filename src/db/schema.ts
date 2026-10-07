@@ -552,6 +552,32 @@ export const actionExecutions = pgTable("action_executions", {
 });
 export type ActionExecution = typeof actionExecutions.$inferSelect;
 
+// A morning (or on-demand) analysis: the pack it was built from, the
+// detectors' findings, the claims that survived validation, and the ones
+// that did not. Kept whole so any number on the screen can be traced.
+export const analysisReports = pgTable(
+  "analysis_reports",
+  {
+    id: id(),
+    brandId: uuid("brand_id")
+      .notNull()
+      .references(() => brands.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull().default("morning"),
+    windowFrom: date("window_from").notNull(),
+    windowTo: date("window_to").notNull(),
+    pack: jsonb("pack").$type<Record<string, unknown>>().notNull(),
+    findings: jsonb("findings").$type<Record<string, unknown>[]>().notNull().default(sql`'[]'::jsonb`),
+    analysis: jsonb("analysis").$type<Record<string, unknown>>().notNull(),
+    dropped: jsonb("dropped").$type<Record<string, unknown>[]>().notNull().default(sql`'[]'::jsonb`),
+    aiRunId: uuid("ai_run_id"),
+    isMock: boolean("is_mock").notNull().default(false),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("idx_analysis_reports_brand_created").on(t.brandId, t.createdAt)],
+);
+export type AnalysisReport = typeof analysisReports.$inferSelect;
+
 export const aiRuns = pgTable("ai_runs", {
   id: id(),
   brandId: uuid("brand_id").references(() => brands.id, { onDelete: "set null" }),
