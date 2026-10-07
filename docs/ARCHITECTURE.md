@@ -289,7 +289,7 @@ Prompts are versioned files in the repo. Every call is logged in `ai_runs` with 
 - **Local first:** everything runs in **mock mode** with no keys (Fernz rule). The mock adapter replays fixture accounts so the whole loop is testable offline.
 - **AWS, ca-central-1, same account:** ECS Fargate service (0.25–0.5 vCPU, 1 GB, `desiredCount=1`), RDS PostgreSQL 16 `db.t4g.micro`, S3 bucket for creative assets, Secrets Manager, ALB + ACM. Rough cost **≈ $45–65/month** before LLM usage. Putting a host rule on Fernz's existing ALB would save about $18/mo; I'd skip that to keep the blast radii separate.
 - **Domain:** an internal hostname not tied to any one brand, e.g. `mb.elitesultimate.com` (*assumption, see Q-list*).
-- **CI:** GitHub Actions on `pull_request` + `workflow_dispatch` only (typecheck + tests). Deploy workflow on push to `main`, ≤ 5 min, `timeout-minutes` set, OIDC role trusting `repo:EvanPhillips5877/marketingbrain:*`. **Pick the repo name once; it's baked into IAM.**
+- **CI:** GitHub Actions on `pull_request` + `workflow_dispatch` only (typecheck + tests). Deploy workflow on push to `main`, ≤ 5 min, `timeout-minutes` set, OIDC role trusting `repo:EvanPhillips5877/vibemarketingbrain:*`. **Pick the repo name once; it's baked into IAM.**
 - **No staging environment for V1.** It's an internal single-user tool, and the real safety net is mock mode, PAUSED creation, policy gates and platform spend caps. TryoutBrain's PR still goes staging → production as usual.
 - Add `.ai-review.json` from day one, with `actions/`, `channels/`, `auth`, `migrations`, `infra` as sensitive paths. Most MarketingBrain phases will be REVIEW-level under your policy.
 

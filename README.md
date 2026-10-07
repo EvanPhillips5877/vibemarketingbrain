@@ -1,4 +1,4 @@
-# MarketingBrain
+# MarketingBrain (`vibemarketingbrain`)
 
 Private internal marketing operating system. Give it a mission ("50 new
 TryoutBrain coaches under $20 each, $1,000 to experiment"); it plans,
