@@ -5,7 +5,8 @@
   "neverSend": [".env", ".env.local", ".env.production", ".env.*.local", "**/*.pem", "**/*.key", "**/*.p12", ".claude/settings.local.json", ".claude/launch.json"],
   "sensitive": [
     { "category": "auth", "paths": ["src/auth/**", "src/app.ts", "src/routes/me.ts", "web/src/api.ts"] },
-    { "category": "migrations-and-data", "paths": ["drizzle/**", "src/db/**", "drizzle.config.ts"] },
+    { "category": "migrations-and-data", "paths": ["drizzle/**", "src/db/**", "drizzle.config.ts", "scripts/**", "src/brands/seed-*.ts"] },
+    { "category": "policy-and-domain-rules", "paths": ["src/domain/**"] },
     { "category": "secrets-config-ci-infra", "paths": [".github/**", "Dockerfile", ".dockerignore", ".env.example", "package.json", "pnpm-lock.yaml", "src/index.ts", "src/config.ts", ".ai-review.json"] },
     { "category": "background-jobs-and-concurrency", "paths": ["src/jobs/**"] },
     { "category": "ad-spend-and-actions", "paths": ["src/actions/**", "src/channels/**", "src/ingest/**"] },

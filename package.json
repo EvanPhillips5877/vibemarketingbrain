@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json",
     "test": "vitest run",
     "generate": "drizzle-kit generate --config drizzle.config.ts",
-    "migrate": "tsx src/db/migrate.ts"
+    "migrate": "tsx src/db/migrate.ts",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

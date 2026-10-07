@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Route, Switch } from "wouter";
 import { api, ApiError, rememberCsrf, type Me } from "./api";
+import { BrandList, BrandPage } from "./pages/Brands";
 import { Placeholder } from "./pages/Placeholder";
 import { Settings } from "./pages/Settings";
 import { Shell } from "./pages/Shell";
@@ -45,7 +46,10 @@ export function App() {
           <Placeholder title="Learnings" blurb="What MarketingBrain has learned, with the evidence." />
         </Route>
         <Route path="/brands">
-          <Placeholder title="Brands" blurb="The Brand Brain: facts, assets, offers, audiences, rules." />
+          <BrandList />
+        </Route>
+        <Route path="/brands/:slug">
+          <BrandPage />
         </Route>
         <Route path="/settings">
           <Settings me={me.data} />

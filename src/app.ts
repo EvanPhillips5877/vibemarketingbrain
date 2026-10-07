@@ -7,6 +7,7 @@ import { attachSession, requireCsrf } from "./auth/middleware.js";
 import { authRouter } from "./auth/routes.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db/client.js";
+import { brandsRouter } from "./routes/brands.js";
 import { meRouter } from "./routes/me.js";
 
 export interface AppDeps {
@@ -41,6 +42,7 @@ export function createApp(deps: AppDeps): Express {
 
   app.use(authRouter({ config, db, identity }));
   app.use(meRouter(config));
+  app.use(brandsRouter(db));
 
   app.all("/api/{*rest}", (_req, res) => {
     res.status(404).json({ error: "not found" });

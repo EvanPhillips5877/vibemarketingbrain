@@ -28,7 +28,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
         <div className="mr-4 text-sm font-semibold tracking-tight md:mb-4 md:mr-0">MarketingBrain</div>
         <nav className="flex gap-1 md:flex-col">
           {NAV.map((item) => {
-            const active = location === item.href;
+            const active = item.href === "/" ? location === "/" : location.startsWith(item.href);
             return (
               <Link
                 key={item.href}
