@@ -117,12 +117,34 @@ export const brandFacts = pgTable(
   },
   (t) => [
     index("idx_brand_facts_brand_category").on(t.brandId, t.category),
-    // One live (active or proposed) fact per (brand, category, key); history
+    // At most one active and one proposed fact per (brand, category, key):
+    // a proposal can sit beside the active fact it would replace. History
     // lives in retired rows. Partial, so inserts can rely on it atomically.
-    uniqueIndex("uq_brand_facts_live_key").on(t.brandId, t.category, t.key).where(sql`status <> 'retired'`),
+    uniqueIndex("uq_brand_facts_key_status").on(t.brandId, t.category, t.key, t.status).where(sql`status <> 'retired'`),
   ],
 );
 export type BrandFact = typeof brandFacts.$inferSelect;
+
+// A page of the brand's own site as last crawled: what the extractor reads.
+// Text is clipped; it is data for a prompt, never an instruction.
+export const brandPages = pgTable(
+  "brand_pages",
+  {
+    id: id(),
+    brandId: uuid("brand_id")
+      .notNull()
+      .references(() => brands.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    title: text("title"),
+    description: text("description"),
+    headings: text("headings").array().notNull().default(sql`'{}'::text[]`),
+    text: text("text").notNull().default(""),
+    httpStatus: integer("http_status"),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("uq_brand_pages_url").on(t.brandId, t.url)],
+);
+export type BrandPage = typeof brandPages.$inferSelect;
 
 export type AssetKind = "screenshot" | "logo" | "photo" | "video" | "font" | "rendered";
 

@@ -73,7 +73,7 @@ describe("TryoutBrain seed", () => {
     expect(product.verifiedAt).not.toBeNull();
   });
 
-  it("refuses a second live fact with the same key, active or proposed", async () => {
+  it("refuses a second active (or second proposed) fact with the same key, but allows one of each", async () => {
     const detail = await getBrand(db, "tryoutbrain");
     const attempt = db.insert(brandFacts).values({
       brandId: detail!.brand.id,
@@ -86,7 +86,7 @@ describe("TryoutBrain seed", () => {
     // Drizzle wraps the driver error; the constraint name is on the cause.
     const err = (await attempt.then(() => null, (e: unknown) => e)) as (Error & { cause?: Error }) | null;
     expect(err).not.toBeNull();
-    expect(`${err?.message} ${err?.cause?.message ?? ""}`).toMatch(/uq_brand_facts_live_key/);
+    expect(`${err?.message} ${err?.cause?.message ?? ""}`).toMatch(/uq_brand_facts_key_status/);
     const proposedDup = db.insert(brandFacts).values({
       brandId: detail!.brand.id,
       category: "pricing",
@@ -96,7 +96,11 @@ describe("TryoutBrain seed", () => {
       status: "proposed",
     });
     const err2 = (await proposedDup.then(() => null, (e: unknown) => e)) as (Error & { cause?: Error }) | null;
-    expect(`${err2?.message} ${err2?.cause?.message ?? ""}`).toMatch(/uq_brand_facts_live_key/);
+    expect(`${err2?.message} ${err2?.cause?.message ?? ""}`).toMatch(/uq_brand_facts_key_status/);
+    // A proposal may sit beside the active fact it would replace.
+    const beside = await db.insert(brandFacts).values({ brandId: detail!.brand.id, category: "product", key: "what_it_is", value: { text: "a proposal" }, source: "crawl", status: "proposed" }).returning({ id: brandFacts.id });
+    expect(beside).toHaveLength(1);
+    await db.delete(brandFacts).where(eq(brandFacts.id, beside[0]!.id));
   });
 
   it("summarizes brands with fact counts and the policy in force", async () => {

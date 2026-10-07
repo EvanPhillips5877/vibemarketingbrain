@@ -35,6 +35,8 @@ export interface Config {
     | { mode: "dev" };
   jobsEnabled: boolean;
   mock: { ai: boolean; meta: boolean; googleAds: boolean };
+  /** Present only when AI is live. Never logged, never sent to the client. */
+  anthropicApiKey: string | undefined;
 }
 
 function present(value: string | undefined): value is string {
@@ -83,5 +85,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       meta: !present(e.META_ACCESS_TOKEN),
       googleAds: !(present(e.GOOGLE_ADS_DEVELOPER_TOKEN) && present(e.GOOGLE_ADS_REFRESH_TOKEN)),
     },
+    anthropicApiKey: present(e.ANTHROPIC_API_KEY) ? e.ANTHROPIC_API_KEY : undefined,
   };
 }

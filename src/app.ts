@@ -7,14 +7,17 @@ import { attachSession, requireCsrf } from "./auth/middleware.js";
 import { authRouter } from "./auth/routes.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db/client.js";
+import { aiClientFor, type AiClient } from "./ai/client.js";
 import { AdapterRegistry } from "./channels/registry.js";
 import { brandsRouter } from "./routes/brands.js";
+import { factsRouter } from "./routes/facts.js";
 import { meRouter } from "./routes/me.js";
 
 export interface AppDeps {
   config: Config;
   db: Db;
   registry?: AdapterRegistry;
+  ai?: AiClient;
   /** Override for tests. Defaults to Google in google mode, none in dev mode. */
   identity?: IdentityProvider | null;
 }
@@ -45,6 +48,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(authRouter({ config, db, identity }));
   app.use(meRouter(config));
   app.use(brandsRouter(db, deps.registry ?? new AdapterRegistry(config)));
+  app.use(factsRouter(db, deps.ai ?? aiClientFor(db, config.anthropicApiKey)));
 
   app.all("/api/{*rest}", (_req, res) => {
     res.status(404).json({ error: "not found" });

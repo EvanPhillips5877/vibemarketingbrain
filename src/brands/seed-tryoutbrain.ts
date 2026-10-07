@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { brandDefaultsSchema, brandFactInputSchema, CAD, type BrandFactInput } from "../domain/brand.js";
 import { ACTION_TYPES, autonomyRulesSchema, type ActionMode, type AutonomyRules } from "../domain/policy.js";
 import type { Db } from "../db/client.js";
@@ -98,7 +98,10 @@ export const TRYOUTBRAIN_FACTS: BrandFactInput[] = [
   active({
     category: "prohibited_claim",
     key: "no_selection_guarantees",
-    value: { text: "Never promise that TryoutBrain picks the best athletes or guarantees fair outcomes; it makes the process transparent. The AI never chooses players." },
+    value: {
+      text: "Never promise that TryoutBrain picks the best athletes or guarantees fair outcomes; it makes the process transparent. The AI never chooses players.",
+      patterns: ["guarantee[sd]?\\b", "picks? the (best|right) (athletes|players|kids)", "\\bAI (picks|chooses|selects)", "never (miss|cut) (a|the) (right|wrong)"],
+    },
   }),
   active({
     category: "prohibited_claim",
@@ -108,7 +111,7 @@ export const TRYOUTBRAIN_FACTS: BrandFactInput[] = [
   active({
     category: "prohibited_claim",
     key: "no_competitor_disparagement",
-    value: { text: "Do not name competitors or claim superiority over named products." },
+    value: { text: "Do not name competitors or claim superiority over named products.", patterns: ["\\b(better|cheaper|faster) than [A-Z][a-zA-Z]+", "\\bunlike [A-Z][a-zA-Z]+\\b"] },
   }),
   active({
     category: "seasonality",
@@ -171,9 +174,15 @@ export async function seedTryoutBrain(db: Db, actor = "system:seed"): Promise<Se
 
   let factsInserted = 0;
   for (const f of TRYOUTBRAIN_FACTS) {
-    // Atomic "insert unless a live fact with this key exists", via the
-    // partial unique index: a person's edits are never overwritten, and two
-    // overlapping seed runs cannot both insert.
+    // A key a person has already dealt with (accepted, edited, or still
+    // reviewing) is theirs: the seed never re-proposes it. The unique index
+    // still guarantees two overlapping seed runs cannot both insert.
+    const live = await db
+      .select({ id: brandFacts.id })
+      .from(brandFacts)
+      .where(and(eq(brandFacts.brandId, brand.id), eq(brandFacts.category, f.category), eq(brandFacts.key, f.key), ne(brandFacts.status, "retired")))
+      .limit(1);
+    if (live.length > 0) continue;
     const inserted = await db
       .insert(brandFacts)
       .values({
@@ -188,7 +197,7 @@ export async function seedTryoutBrain(db: Db, actor = "system:seed"): Promise<Se
         verifiedAt: f.status === "active" ? sql`now()` : null,
       })
       .onConflictDoNothing({
-        target: [brandFacts.brandId, brandFacts.category, brandFacts.key],
+        target: [brandFacts.brandId, brandFacts.category, brandFacts.key, brandFacts.status],
         where: sql`status <> 'retired'`,
       })
       .returning({ id: brandFacts.id });
