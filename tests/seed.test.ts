@@ -47,6 +47,13 @@ describe("TryoutBrain seed", () => {
     expect(await db.select().from(brandFacts)).toHaveLength(TRYOUTBRAIN_FACTS.length);
   });
 
+  it("re-seeding an existing brand fills in the export secret reference", async () => {
+    await db.update(brands).set({ eventsExportSecretRef: null }).where(eq(brands.slug, "tryoutbrain"));
+    await seedTryoutBrain(db);
+    const [b] = await db.select().from(brands).where(eq(brands.slug, "tryoutbrain"));
+    expect(b?.eventsExportSecretRef).toBe("TRYOUTBRAIN_EXPORT_TOKEN");
+  });
+
   it("never overwrites a fact a person has edited", async () => {
     const detail = await getBrand(db, "tryoutbrain");
     const fact = detail!.facts.find((f) => f.key === "tone")!;

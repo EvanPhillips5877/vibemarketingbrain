@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { seedMockChannelAccount, seedTryoutBrain } from "../src/brands/seed-tryoutbrain.js";
 import { AdapterRegistry } from "../src/channels/registry.js";
@@ -54,7 +54,7 @@ describe("ingest: mock account → ext_objects / metrics_daily", () => {
   });
 
   it("reflects a platform-side change (pause) on the next sync", async () => {
-    const [campaign] = await db.select().from(extObjects).where(eq(extObjects.status, "ACTIVE")).limit(1);
+    const [campaign] = await db.select().from(extObjects).where(and(eq(extObjects.kind, "campaign"), eq(extObjects.status, "ACTIVE"))).limit(1);
     await adapter.execute({ ...account, secretRef: null }, { type: "PAUSE_AD", kind: campaign!.kind as "campaign", externalId: campaign!.externalId });
     await syncStructure(db, adapter, account);
     const [after] = await db.select().from(extObjects).where(eq(extObjects.id, campaign!.id));
@@ -80,8 +80,11 @@ describe("ingest: mock account → ext_objects / metrics_daily", () => {
   it("does not restate history to zero when an object is paused after the fact", async () => {
     const from = isoDay(7);
     const to = isoDay(1);
+    // The previous case re-activated its campaign on the platform without re-syncing; mirror first.
+    await syncStructure(db, adapter, account);
     await syncMetrics(db, adapter, account, from, to);
-    const [campaign] = await db.select().from(extObjects).where(eq(extObjects.status, "ACTIVE")).limit(1);
+    const [campaign] = await db.select().from(extObjects).where(and(eq(extObjects.kind, "campaign"), eq(extObjects.status, "ACTIVE"))).limit(1);
+    expect(campaign).toBeDefined();
     const spendBefore = async () =>
       (await db.select({ s: sql<number>`coalesce(sum(spend_micros),0)::bigint` }).from(metricsDaily))[0]!.s;
     const before = Number(await spendBefore());

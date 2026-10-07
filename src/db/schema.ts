@@ -83,6 +83,12 @@ export const brands = pgTable("brands", {
   // Per-brand campaign defaults the strategist starts from (geo, objective,
   // budget floor/ceiling, UTM template). Validated by BrandDefaults in domain/.
   defaults: jsonb("defaults").$type<BrandDefaults>().notNull(),
+  // Where the brand's own app exports its funnel (org-level rows), and the
+  // name of the secret holding the bearer token. Null url = mock source.
+  eventsExportUrl: text("events_export_url"),
+  eventsExportSecretRef: text("events_export_secret_ref"),
+  eventsCursor: text("events_cursor"),
+  eventsPulledAt: timestamp("events_pulled_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -246,7 +252,7 @@ export type MetricsDaily = typeof metricsDaily.$inferSelect;
 /* ── Revenue truth, pulled from the brand's own app ─────────────────── */
 
 export type CustomerStage = "registered" | "activated" | "paid" | "churned";
-export type AttributionMethod = "click_id" | "utm_content" | "utm_campaign" | "unattributed";
+export type AttributionMethod = "click_id" | "utm_content" | "utm_campaign" | "utm_source" | "unattributed";
 
 // Org-level only. external_customer_id is the brand app's organization id;
 // never a person. Enforced by the export contract, re-checked here by review.
@@ -263,12 +269,16 @@ export const customerEvents = pgTable(
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     firstTouch: jsonb("first_touch").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
     attributedExtObjectId: uuid("attributed_ext_object_id").references(() => extObjects.id, { onDelete: "set null" }),
+    // Known even when no object is: a gclid says "google" without saying which ad.
+    attributedChannel: text("attributed_channel").$type<Channel>(),
     attributionMethod: text("attribution_method").$type<AttributionMethod>(),
+    plan: text("plan"),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex("uq_customer_events").on(t.brandId, t.externalCustomerId, t.stage),
     index("idx_customer_events_occurred").on(t.brandId, t.occurredAt),
+    index("idx_customer_events_unattributed").on(t.brandId).where(sql`attribution_method is null`),
   ],
 );
 export type CustomerEvent = typeof customerEvents.$inferSelect;

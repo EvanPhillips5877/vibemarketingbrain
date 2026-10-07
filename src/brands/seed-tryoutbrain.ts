@@ -151,8 +151,21 @@ export async function seedTryoutBrain(db: Db, actor = "system:seed"): Promise<Se
       defaultCurrency: "CAD",
       timezone: "America/Toronto",
       defaults: TRYOUTBRAIN_DEFAULTS,
+      // The funnel export (Phase 6 of the plan). The token is read from the
+      // environment by name; without it the mock source is used.
+      eventsExportUrl: process.env["TRYOUTBRAIN_EXPORT_URL"] ?? null,
+      eventsExportSecretRef: "TRYOUTBRAIN_EXPORT_TOKEN",
     })
-    .onConflictDoUpdate({ target: brands.slug, set: { name: "TryoutBrain", website: SITE, updatedAt: sql`now()` } })
+    .onConflictDoUpdate({
+      target: brands.slug,
+      set: {
+        name: "TryoutBrain",
+        website: SITE,
+        eventsExportUrl: process.env["TRYOUTBRAIN_EXPORT_URL"] ?? null,
+        eventsExportSecretRef: "TRYOUTBRAIN_EXPORT_TOKEN",
+        updatedAt: sql`now()`,
+      },
+    })
     .returning();
   if (!brand) throw new Error("brand upsert returned no row");
 

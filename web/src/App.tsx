@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Route, Switch } from "wouter";
 import { api, ApiError, rememberCsrf, type Me } from "./api";
 import { BrandList, BrandPage } from "./pages/Brands";
+import { Campaigns } from "./pages/Campaigns";
+import { Today } from "./pages/Today";
 import { Placeholder } from "./pages/Placeholder";
 import { Settings } from "./pages/Settings";
 import { Shell } from "./pages/Shell";
@@ -31,7 +33,7 @@ export function App() {
     <Shell me={me.data}>
       <Switch>
         <Route path="/">
-          <Placeholder title="Today" blurb="Spend, results, what changed, what MarketingBrain did, what needs your approval." />
+          <Today />
         </Route>
         <Route path="/missions">
           <Placeholder title="Missions" blurb="Goals with a budget and a target cost, and the experiments running under them." />
@@ -40,7 +42,7 @@ export function App() {
           <Placeholder title="Creative" blurb="Hypotheses, hooks, variants and their lineage." />
         </Route>
         <Route path="/campaigns">
-          <Placeholder title="Campaigns" blurb="One table across Meta and Google." />
+          <Campaigns />
         </Route>
         <Route path="/learnings">
           <Placeholder title="Learnings" blurb="What MarketingBrain has learned, with the evidence." />

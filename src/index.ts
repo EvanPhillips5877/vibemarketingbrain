@@ -1,4 +1,5 @@
 import { createApp } from "./app.js";
+import { AdapterRegistry } from "./channels/registry.js";
 import { loadConfig } from "./config.js";
 import { createDb } from "./db/client.js";
 import { loadDotEnv } from "./env.js";
@@ -7,7 +8,8 @@ import { startJobs } from "./jobs/boss.js";
 loadDotEnv();
 const config = loadConfig();
 const handle = createDb(config.databaseUrl);
-const app = createApp({ config, db: handle.db });
+const registry = new AdapterRegistry(config);
+const app = createApp({ config, db: handle.db, registry });
 
 const server = app.listen(config.port, () => {
   const mocks = Object.entries(config.mock)
@@ -18,7 +20,7 @@ const server = app.listen(config.port, () => {
   );
 });
 
-const boss = config.jobsEnabled ? await startJobs(config.databaseUrl) : null;
+const boss = config.jobsEnabled ? await startJobs(config.databaseUrl, handle.db, registry) : null;
 if (boss) console.log("[jobs] scheduler running");
 
 async function shutdown(signal: string): Promise<void> {
