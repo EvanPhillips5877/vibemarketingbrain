@@ -1,0 +1,21 @@
+{
+  "baseRef": "origin/main",
+  "requiredReviewers": ["codex", "gemini"],
+  "maxDiffChars": 120000,
+  "neverSend": [".env", ".env.local", ".env.production", ".env.*.local", "**/*.pem", "**/*.key", "**/*.p12", ".claude/settings.local.json", ".claude/launch.json"],
+  "sensitive": [
+    { "category": "auth", "paths": ["src/auth/**", "src/app.ts", "src/routes/me.ts", "web/src/api.ts"] },
+    { "category": "migrations-and-data", "paths": ["drizzle/**", "src/db/**", "drizzle.config.ts"] },
+    { "category": "secrets-config-ci-infra", "paths": [".github/**", "Dockerfile", ".dockerignore", ".env.example", "package.json", "pnpm-lock.yaml", "src/index.ts", "src/config.ts", ".ai-review.json"] },
+    { "category": "background-jobs-and-concurrency", "paths": ["src/jobs/**"] },
+    { "category": "ad-spend-and-actions", "paths": ["src/actions/**", "src/channels/**", "src/ingest/**"] },
+    { "category": "untrusted-input-and-ai", "paths": ["src/ai/**", "src/brands/crawler.ts", "src/brands/extract.ts"] }
+  ],
+  "sensitiveContent": [
+    { "category": "auth", "regex": "requireUser|requireCsrf|attachSession|mb_session|csrfToken|allowedEmails" },
+    { "category": "destructive-data", "regex": "\\.delete\\(|DELETE FROM|DROP (TABLE|COLUMN)|TRUNCATE|ALTER TABLE" },
+    { "category": "secrets-config", "regex": "process\\.env\\.[A-Z_]*(KEY|SECRET|TOKEN|PASSWORD)" },
+    { "category": "ad-spend", "regex": "budget|execute\\(|PgBoss|boss\\." },
+    { "category": "concurrency-background", "regex": "setInterval|Promise\\.all|FOR UPDATE" }
+  ]
+}

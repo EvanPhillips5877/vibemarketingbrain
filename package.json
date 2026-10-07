@@ -1,0 +1,53 @@
+{
+  "name": "marketingbrain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"pnpm run dev:api\" \"pnpm run dev:web\"",
+    "dev:api": "tsx watch src/index.ts",
+    "dev:web": "vite --config web/vite.config.ts",
+    "build": "pnpm run typecheck && vite build --config web/vite.config.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json",
+    "test": "vitest run",
+    "generate": "drizzle-kit generate --config drizzle.config.ts",
+    "migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "drizzle-orm": "^0.45.1",
+    "express": "^5.1.0",
+    "google-auth-library": "^10.0.0",
+    "pg": "^8.16.0",
+    "pg-boss": "^10.1.0",
+    "tsx": "^4.19.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@tanstack/react-query": "^5.80.0",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.11.14",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/supertest": "^7.2.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "concurrently": "^9.1.0",
+    "drizzle-kit": "^0.31.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "supertest": "^7.2.2",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.0",
+    "vitest": "^3.2.0",
+    "wouter": "^3.7.0"
+  }
+}
