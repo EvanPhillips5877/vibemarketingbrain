@@ -307,7 +307,7 @@ export type CustomerEvent = typeof customerEvents.$inferSelect;
 
 /* ── Missions, hypotheses, creative lineage ─────────────────────────── */
 
-export type MissionStatus = "draft" | "active" | "paused" | "done";
+export type MissionStatus = "draft" | "planned" | "active" | "paused" | "done";
 
 export const missions = pgTable("missions", {
   id: id(),

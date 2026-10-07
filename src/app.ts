@@ -12,6 +12,7 @@ import { AdapterRegistry } from "./channels/registry.js";
 import { brandsRouter } from "./routes/brands.js";
 import { analysisRouter } from "./routes/analysis.js";
 import { creativeRouter } from "./routes/creative.js";
+import { missionsRouter } from "./routes/missions.js";
 import { factsRouter } from "./routes/facts.js";
 import { proposalsRouter } from "./routes/proposals.js";
 import { meRouter } from "./routes/me.js";
@@ -57,6 +58,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(factsRouter(db, ai));
   app.use(analysisRouter(db, ai));
   app.use(creativeRouter(db, ai));
+  app.use(missionsRouter(db, ai));
 
   app.all("/api/{*rest}", (_req, res) => {
     res.status(404).json({ error: "not found" });

@@ -3,6 +3,7 @@ import type { AiClient } from "../ai/client.js";
 import { executeApproved, reconcileUnknown } from "../actions/executor.js";
 import { expireStale } from "../actions/proposals.js";
 import { analyzeAllBrands } from "../analytics/morning.js";
+import { progressAllBrands } from "../missions/progressAll.js";
 import type { AdapterRegistry } from "../channels/registry.js";
 import type { Db } from "../db/client.js";
 import { syncAllBrands } from "../ingest/sync.js";
@@ -39,7 +40,8 @@ export async function startJobs(connectionString: string, db: Db, registry: Adap
   await schedule("sync-morning", "0 6 * * *", async () => {
     const synced = await syncAllBrands(db, registry, { metricDays: 7, actor: "system:sync-morning" });
     const analyzed = await analyzeAllBrands(db, ai, { actor: "system:analysis-morning" });
-    return { synced, analyzed };
+    const missions = await progressAllBrands(db);
+    return { synced, analyzed, missions };
   });
   // Through the day: today's pacing plus any new sign-ups, hourly.
   await schedule("sync-hourly", "15 7-23 * * *", () => syncAllBrands(db, registry, { metricDays: 1, actor: "system:sync-hourly" }));

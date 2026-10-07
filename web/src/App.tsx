@@ -4,6 +4,7 @@ import { api, ApiError, rememberCsrf, type Me } from "./api";
 import { BrandList, BrandPage } from "./pages/Brands";
 import { Campaigns } from "./pages/Campaigns";
 import { Creative } from "./pages/Creative";
+import { Missions } from "./pages/Missions";
 import { Today } from "./pages/Today";
 import { Placeholder } from "./pages/Placeholder";
 import { Settings } from "./pages/Settings";
@@ -37,7 +38,7 @@ export function App() {
           <Today />
         </Route>
         <Route path="/missions">
-          <Placeholder title="Missions" blurb="Goals with a budget and a target cost, and the experiments running under them." />
+          <Missions />
         </Route>
         <Route path="/creative">
           <Creative />
