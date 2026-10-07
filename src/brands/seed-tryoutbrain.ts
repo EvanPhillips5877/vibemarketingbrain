@@ -1,8 +1,8 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { brandDefaultsSchema, brandFactInputSchema, CAD, type BrandFactInput } from "../domain/brand.js";
 import { ACTION_TYPES, autonomyRulesSchema, type ActionMode, type AutonomyRules } from "../domain/policy.js";
 import type { Db } from "../db/client.js";
-import { auditEvents, autonomyPolicies, brandFacts, brands } from "../db/schema.js";
+import { auditEvents, autonomyPolicies, brandFacts, brands, channelAccounts, type ChannelAccount } from "../db/schema.js";
 
 // The first brand, seeded from what the TryoutBrain repo and site say today.
 // Idempotent: run it twice and nothing doubles. Facts that nobody has
@@ -213,4 +213,20 @@ export async function seedTryoutBrain(db: Db, actor = "system:seed"): Promise<Se
     });
   }
   return { brandId: brand.id, factsInserted, policyVersion, policyInserted };
+}
+
+/** A pretend ad account on the mock channel, so the loop runs end to end with no credentials. Idempotent. */
+export async function seedMockChannelAccount(db: Db, brandId: string): Promise<ChannelAccount> {
+  const externalAccountId = "mock-tryoutbrain";
+  await db
+    .insert(channelAccounts)
+    .values({ brandId, channel: "mock", externalAccountId, currency: "CAD", timezone: "America/Toronto", secretRef: null })
+    .onConflictDoNothing({ target: [channelAccounts.brandId, channelAccounts.channel, channelAccounts.externalAccountId] });
+  const [row] = await db
+    .select()
+    .from(channelAccounts)
+    .where(and(eq(channelAccounts.brandId, brandId), eq(channelAccounts.channel, "mock"), eq(channelAccounts.externalAccountId, externalAccountId)))
+    .limit(1);
+  if (!row) throw new Error("mock channel account missing after insert");
+  return row;
 }
