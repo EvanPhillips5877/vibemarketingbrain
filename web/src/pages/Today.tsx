@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api } from "../api";
 import { MockBadge, StatTile, WindowPicker } from "../components/StatTile";
 import { useCurrentBrand } from "../lib/brand";
-import { int, money, pct, relativeTime } from "../lib/format";
+import { int, money, pct, relativeTime, untilTime } from "../lib/format";
 
 interface Totals {
   spendMicros: number;
@@ -125,11 +125,118 @@ export function Today() {
 
       <Report slug={brand.slug} anyMock={anyMock} />
 
-      <h2 className="mt-8 text-xs uppercase tracking-wide text-neutral-500">Needs approval</h2>
-      <p className="mt-2 rounded-md border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-700">
-        Nothing yet. Proposals and approvals arrive with the Action Engine (Phase 11).
-      </p>
+      <Proposals slug={brand.slug} currency={cur} />
     </section>
+  );
+}
+
+interface Proposal {
+  id: string;
+  type: string;
+  status: string;
+  reason: string;
+  source: string;
+  expectedOutcome: string | null;
+  payload: Record<string, unknown>;
+  policyResult: { violations: { rule: string; detail: string; effect: string }[]; mode: string } | null;
+  evidence: { entries?: { id: string; label: string; value: number | null; unit?: string }[] };
+  approvedBy: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function describePayload(p: Record<string, unknown>, currency: string): string {
+  const t = p["type"];
+  if (t === "PAUSE_AD" || t === "ACTIVATE") return `${t === "PAUSE_AD" ? "Pause" : "Activate"} ${p["kind"]} ${p["externalId"]}`;
+  if (t === "CHANGE_BUDGET") return `Set ${p["kind"]} ${p["externalId"]} daily budget to ${money(p["dailyBudgetMicros"] as number, currency, { cents: true })}`;
+  if (t === "CREATE_CAMPAIGN") return `Create campaign "${p["name"]}" at ${money(p["dailyBudgetMicros"] as number, currency, { cents: true })}/day in ${(p["geos"] as string[]).join(", ")}`;
+  if (t === "ROTATE_AD") return `Rotate: pause ${(p["pause"] as { externalId: string }).externalId}, activate ${(p["activate"] as { externalId: string }).externalId}`;
+  if (t === "REALLOCATE_BUDGET") return `Move budget from ${(p["from"] as { externalId: string }).externalId} to ${(p["to"] as { externalId: string }).externalId}`;
+  return String(t);
+}
+
+function Proposals({ slug, currency }: { slug: string; currency: string }) {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["proposals", slug], queryFn: () => api<{ open: Proposal[]; done: Proposal[] }>(`/api/brands/${slug}/proposals`) });
+  const decide = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" | "rollback" }) => api(`/api/brands/${slug}/proposals/${id}`, { method: "PATCH", body: { action } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["proposals", slug] }),
+  });
+  const execute = useMutation({
+    mutationFn: () => api(`/api/brands/${slug}/execute`, { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries(),
+  });
+  const btn = "rounded-md border border-neutral-300 px-2 py-0.5 text-xs hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800";
+  const open = q.data?.open ?? [];
+  const waiting = open.filter((p) => p.status === "awaiting_approval");
+  const inFlight = open.filter((p) => p.status !== "awaiting_approval");
+  const done = (q.data?.done ?? []).slice(0, 10);
+  return (
+    <>
+      <div className="mt-8 flex items-center justify-between">
+        <h2 className="text-xs uppercase tracking-wide text-neutral-500">Needs approval ({waiting.length})</h2>
+        <button onClick={() => execute.mutate()} disabled={execute.isPending || !open.some((p) => p.status !== "awaiting_approval")} className={btn} title="Run approved proposals now; the scheduler does this every 5 minutes">
+          {execute.isPending ? "Running…" : "Run approved now"}
+        </button>
+      </div>
+      {(decide.isError || execute.isError) && <p className="mt-2 text-sm text-red-600">{(decide.error ?? execute.error)?.message}</p>}
+      {q.isPending && <p className="mt-2 text-sm text-neutral-500">Loading…</p>}
+      {!q.isPending && waiting.length === 0 && <p className="mt-2 rounded-md border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-700">Nothing waiting for you.</p>}
+      <ul className="mt-2 space-y-2">
+        {waiting.map((p) => (
+          <li key={p.id} className="rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800">
+            <div className="font-medium">{describePayload(p.payload, currency)}</div>
+            <p className="mt-1 text-neutral-600 dark:text-neutral-300">{p.reason}</p>
+            {p.expectedOutcome && <p className="text-xs text-neutral-500">Expected: {p.expectedOutcome}</p>}
+            {p.evidence?.entries && (
+              <p className="mt-1 flex flex-wrap gap-1">
+                {p.evidence.entries.map((e) => (
+                  <span key={e.id} className="rounded border border-neutral-300 px-1 font-mono text-[10px] text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
+                    {e.label}: {e.value === null ? "n/a" : e.unit === "micros" ? money(e.value, currency, { cents: true }) : e.unit === "pct" ? `${e.value}%` : int(e.value)}
+                  </span>
+                ))}
+              </p>
+            )}
+            {p.policyResult && p.policyResult.violations.length > 0 && <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Policy: {p.policyResult.violations.map((v) => v.detail).join("; ")}</p>}
+            <p className="mt-1 font-mono text-[11px] text-neutral-500">
+              {p.type} · {p.source} · expires {untilTime(p.expiresAt)}
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button className={btn} disabled={decide.isPending} onClick={() => decide.mutate({ id: p.id, action: "approve" })}>
+                Approve
+              </button>
+              <button className={btn} disabled={decide.isPending} onClick={() => decide.mutate({ id: p.id, action: "reject" })}>
+                Reject
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {inFlight.length > 0 && (
+        <p className="mt-2 text-xs text-neutral-500">
+          In flight: {inFlight.map((p) => `${describePayload(p.payload, currency)} (${p.status})`).join(" · ")}
+        </p>
+      )}
+      <h2 className="mt-8 text-xs uppercase tracking-wide text-neutral-500">What MarketingBrain did</h2>
+      {done.length === 0 && <p className="mt-2 text-sm text-neutral-500">Nothing executed yet.</p>}
+      <ul className="mt-2 space-y-1 text-sm">
+        {done.map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center gap-2">
+            <span className="rounded bg-neutral-200 px-1 font-mono text-[10px] uppercase dark:bg-neutral-700">{p.status}</span>
+            <span>{describePayload(p.payload, currency)}</span>
+            <span className="text-xs text-neutral-500">
+              {p.source} · {relativeTime(p.updatedAt)}
+            </span>
+            {p.status === "executed" && (
+              <button className={btn} disabled={decide.isPending} onClick={() => decide.mutate({ id: p.id, action: "rollback" })}>
+                Undo (propose rollback)
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

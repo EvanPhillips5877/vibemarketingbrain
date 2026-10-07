@@ -3,6 +3,7 @@ import { Route, Switch } from "wouter";
 import { api, ApiError, rememberCsrf, type Me } from "./api";
 import { BrandList, BrandPage } from "./pages/Brands";
 import { Campaigns } from "./pages/Campaigns";
+import { Creative } from "./pages/Creative";
 import { Today } from "./pages/Today";
 import { Placeholder } from "./pages/Placeholder";
 import { Settings } from "./pages/Settings";
@@ -39,7 +40,7 @@ export function App() {
           <Placeholder title="Missions" blurb="Goals with a budget and a target cost, and the experiments running under them." />
         </Route>
         <Route path="/creative">
-          <Placeholder title="Creative" blurb="Hypotheses, hooks, variants and their lineage." />
+          <Creative />
         </Route>
         <Route path="/campaigns">
           <Campaigns />

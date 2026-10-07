@@ -11,7 +11,9 @@ import { aiClientFor, type AiClient } from "./ai/client.js";
 import { AdapterRegistry } from "./channels/registry.js";
 import { brandsRouter } from "./routes/brands.js";
 import { analysisRouter } from "./routes/analysis.js";
+import { creativeRouter } from "./routes/creative.js";
 import { factsRouter } from "./routes/facts.js";
+import { proposalsRouter } from "./routes/proposals.js";
 import { meRouter } from "./routes/me.js";
 
 export interface AppDeps {
@@ -48,10 +50,13 @@ export function createApp(deps: AppDeps): Express {
 
   app.use(authRouter({ config, db, identity }));
   app.use(meRouter(config));
-  app.use(brandsRouter(db, deps.registry ?? new AdapterRegistry(config)));
+  const registry = deps.registry ?? new AdapterRegistry(config);
+  app.use(brandsRouter(db, registry));
+  app.use(proposalsRouter(db, registry));
   const ai = deps.ai ?? aiClientFor(db, config.anthropicApiKey);
   app.use(factsRouter(db, ai));
   app.use(analysisRouter(db, ai));
+  app.use(creativeRouter(db, ai));
 
   app.all("/api/{*rest}", (_req, res) => {
     res.status(404).json({ error: "not found" });

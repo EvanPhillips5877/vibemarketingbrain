@@ -3,6 +3,7 @@ import type { AiClient } from "../ai/client.js";
 import { runAnalyst, type AnalystResult } from "../ai/analyst.js";
 import type { Db } from "../db/client.js";
 import { analysisReports, auditEvents, brands, type AnalysisReport } from "../db/schema.js";
+import { proposeFromFindings } from "../actions/fromFindings.js";
 import { runDetectors } from "./detectors.js";
 import { buildMetricPack, entryIndex } from "./metricPack.js";
 
@@ -14,11 +15,15 @@ export async function analyzeBrand(db: Db, ai: AiClient, brandId: string, opts: 
   const pack = await buildMetricPack(db, brandId, opts.today);
   const findings = runDetectors(pack, entryIndex(pack));
   const result = await runAnalyst(db, ai, brandId, pack, findings, { kind: opts.kind ?? "morning", actor: opts.actor ?? "system:analysis-morning" });
+  // What the detectors suggested becomes proposals, each citing the pack
+  // entries it rests on; the policy decides whether a person must approve.
+  const byId = entryIndex(pack);
+  const proposals = await proposeFromFindings(db, brandId, findings, (f) => ({ reportId: result.report.id, detector: f.detector, entries: f.evidence.map((id) => ({ id, value: byId.get(id)?.value ?? null, unit: byId.get(id)?.unit ?? "count", label: byId.get(id)?.label ?? id })) }));
   await db.insert(auditEvents).values({
     actor: opts.actor ?? "system:analysis-morning",
     verb: "brand_analyzed",
     subject: `brand:${brandId}`,
-    data: { reportId: result.report.id, findings: findings.length, claims: (result.report.analysis as { claims: unknown[] }).claims.length, dropped: result.dropped.length, isMock: result.isMock },
+    data: { reportId: result.report.id, findings: findings.length, claims: (result.report.analysis as { claims: unknown[] }).claims.length, dropped: result.dropped.length, isMock: result.isMock, proposals: proposals.filter((p) => !p.duplicate).length },
   });
   return result;
 }

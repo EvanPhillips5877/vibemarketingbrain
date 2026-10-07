@@ -17,7 +17,8 @@
     "test": "vitest run",
     "generate": "drizzle-kit generate --config drizzle.config.ts",
     "migrate": "tsx src/db/migrate.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "assets:import": "tsx scripts/import-screenshots.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.0",
@@ -27,6 +28,7 @@
     "google-auth-library": "^10.0.0",
     "pg": "^8.16.0",
     "pg-boss": "^10.1.0",
+    "sharp": "^0.35.5",
     "tsx": "^4.19.4",
     "zod": "^3.25.76"
   },

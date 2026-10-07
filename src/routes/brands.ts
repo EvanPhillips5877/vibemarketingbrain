@@ -1,7 +1,7 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
-import { auditEvents } from "../db/schema.js";
+import { auditEvents, channelAccounts } from "../db/schema.js";
 import { brandSummary, campaignsTable } from "../analytics/ledger.js";
 import { currentUser, requireUser } from "../auth/middleware.js";
 import { getBrand, listBrands } from "../brands/queries.js";
@@ -82,6 +82,22 @@ export function brandsRouter(db: Db, registry: AdapterRegistry): Router {
       }
       const window = { from: isoDay(q.data!.days - 1), to: isoDay(0), timezone: detail.brand.timezone };
       res.json({ window, currency: detail.brand.defaultCurrency, campaigns: await campaignsTable(db, detail.brand.id, window) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // The brand's ad accounts (ids and channels only; never a token).
+  router.get("/api/brands/:slug/accounts", requireUser, async (req, res, next) => {
+    try {
+      const slug = slugSchema.safeParse(req.params["slug"]);
+      const detail = slug.success ? await getBrand(db, slug.data) : null;
+      if (!detail) {
+        res.status(404).json({ error: "not found" });
+        return;
+      }
+      const rows = await db.select({ id: channelAccounts.id, channel: channelAccounts.channel, externalAccountId: channelAccounts.externalAccountId, status: channelAccounts.status, isMock: sql<boolean>`${channelAccounts.channel} = 'mock'` }).from(channelAccounts).where(eq(channelAccounts.brandId, detail.brand.id));
+      res.json({ accounts: rows.map((r) => ({ ...r, isMock: r.isMock || registry.isMocked(r.channel) })) });
     } catch (err) {
       next(err);
     }

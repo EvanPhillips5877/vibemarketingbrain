@@ -8,3 +8,4 @@ dist/
 .claude/launch.json
 package-lock.json
 yarn.lock
+data/

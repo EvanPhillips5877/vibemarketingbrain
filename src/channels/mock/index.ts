@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { AdapterCommand } from "../../domain/actions.js";
 import { adapterCommandSchema } from "../../domain/actions.js";
+import { FORMAT_SPECS as SHARED_FORMATS } from "../../creative/formats.js";
 import type {
   AccountRef,
   Capability,
@@ -285,7 +286,14 @@ export class MockAdapter implements ChannelAdapter {
     return rest;
   }
 
+  async fetchObject(account: AccountRef, kind: ExtObjectInput["kind"], externalId: string): Promise<ExtObjectInput | null> {
+    const o = this.state(account).objects.get(key(kind, externalId));
+    if (!o) return null;
+    const { idempotencyKey: _k, createdOn: _c, pauses: _p, ...rest } = o;
+    return { ...rest, settings: { ...rest.settings }, raw: { ...rest.raw } };
+  }
+
   formatSpec(format: string): CreativeFormatSpec | null {
-    return FORMATS[format] ?? null;
+    return FORMATS[format] ?? SHARED_FORMATS[format as keyof typeof SHARED_FORMATS] ?? null;
   }
 }

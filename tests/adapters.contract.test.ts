@@ -170,6 +170,14 @@ describe.each(ADAPTERS)("adapter contract: $name", ({ make, account }) => {
     expect(sameIdOtherChannel?.status).toBe("ACTIVE");
   });
 
+  it("fetchObject returns the live object or null", async () => {
+    const a = make();
+    const campaign = (await collect(a.syncStructure(account))).find((o) => o.kind === "campaign")!;
+    const live = await a.fetchObject(account, "campaign", campaign.externalId);
+    expect(live).toMatchObject({ kind: "campaign", externalId: campaign.externalId, status: campaign.status });
+    expect(await a.fetchObject(account, "campaign", "does-not-exist")).toBeNull();
+  });
+
   it("execute() refuses what validate() refuses", async () => {
     const a = make();
     await expect(a.execute(account, { type: "ACTIVATE", kind: "ad", externalId: "nope" })).rejects.toThrow();

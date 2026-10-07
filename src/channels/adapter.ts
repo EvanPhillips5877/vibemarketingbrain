@@ -93,6 +93,8 @@ export interface ChannelAdapter {
   execute(account: AccountRef, command: AdapterCommand): Promise<ExecResult>;
   /** After a timeout: did a create of this kind with this key already land? */
   findByIdempotencyKey(account: AccountRef, kind: ExtObjectKind, idempotencyKey: string): Promise<ExtObjectInput | null>;
+  /** One object's live state, or null if the platform no longer has it. */
+  fetchObject(account: AccountRef, kind: ExtObjectKind, externalId: string): Promise<ExtObjectInput | null>;
 
   formatSpec(format: string): CreativeFormatSpec | null;
 }

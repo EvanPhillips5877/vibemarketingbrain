@@ -22,3 +22,14 @@ export function relativeTime(iso: string | null | undefined): string {
   if (h < 48) return `${h} h ago`;
   return `${Math.round(h / 24)} d ago`;
 }
+
+/** "in 3 h", "in 2 d", or "overdue" for a future instant. */
+export function untilTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const mins = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+  if (mins <= 0) return "overdue";
+  if (mins < 60) return `in ${mins} min`;
+  const h = Math.round(mins / 60);
+  if (h < 48) return `in ${h} h`;
+  return `in ${Math.round(h / 24)} d`;
+}
