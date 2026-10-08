@@ -2,6 +2,8 @@ name: Deploy
 # Push to main deploys to Fly. Kept short and capped: the free Actions
 # minutes are shared by every repo. The image is built on Fly's builders
 # (--remote-only), so this runner only talks to the Fly API.
+# Until the FLY_API_TOKEN secret exists (docs/DEPLOY.md step 8) the run
+# ends green without deploying anything.
 on:
   push:
     branches: [main]
@@ -14,8 +16,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
+      - id: gate
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "FLY_API_TOKEN is not set; nothing deployed."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+      - if: steps.gate.outputs.skip != 'true'
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      - if: steps.gate.outputs.skip != 'true'
+        run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
