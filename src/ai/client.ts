@@ -37,6 +37,18 @@ export function costMicros(model: string, inputTokens: number, outputTokens: num
   return Math.round((inputTokens * inPrice + outputTokens * outPrice) / 1_000_000 * 1_000_000);
 }
 
+/** The model's answer broke the schema twice; the caller decides what that means for the person. */
+export class AiOutputInvalid extends Error {
+  constructor(
+    public readonly fn: string,
+    public readonly issues: string[],
+    public readonly runId: string,
+  ) {
+    super(`model output failed validation after a retry (${fn}): ${issues.slice(0, 5).join("; ")}`);
+    this.name = "AiOutputInvalid";
+  }
+}
+
 export class AiBudgetExceeded extends Error {
   constructor(public readonly spentMicros: number, public readonly budgetMicros: number) {
     super(`monthly AI budget spent: ${spentMicros} of ${budgetMicros} micros`);
@@ -115,39 +127,76 @@ export class MockAiClient implements AiClient {
   }
 }
 
+/** The slice of the SDK this client uses, so tests can hand in a fake. */
+export interface MessagesLike {
+  create(params: { model: string; max_tokens: number; system: string; messages: { role: "user" | "assistant"; content: string }[]; output_config: { format: unknown } }): Promise<{ content: { type: string; text?: string }[]; usage: { input_tokens: number; output_tokens: number }; stop_reason: string | null }>;
+}
+
+const issueLines = (issues: { path: PropertyKey[]; message: string }[]): string[] => issues.map((i) => `${i.path.map(String).join(".") || "(root)"}: ${i.message}`);
+
 export class AnthropicAiClient implements AiClient {
   readonly isMock = false;
-  private readonly client: Anthropic;
+  private readonly messages: MessagesLike;
   constructor(
     private readonly db: Db,
     apiKey: string,
+    messages?: MessagesLike,
   ) {
-    this.client = new Anthropic({ apiKey, maxRetries: 2, timeout: 120_000 });
+    this.messages = messages ?? (new Anthropic({ apiKey, maxRetries: 2, timeout: 120_000 }).messages as unknown as MessagesLike);
   }
 
+  /**
+   * One structured call with one retry. The model is given the schema as
+   * the output format, but a length limit it overshoots is reported back
+   * once, verbatim, before the call is declared failed. Both attempts are
+   * logged to ai_runs with their cost.
+   */
   async structured<T extends z.ZodType>(call: StructuredCall<T>, _mockFallback: () => z.infer<T>): Promise<StructuredResult<z.infer<T>>> {
     await assertBudget(this.db, call.brandId);
-    const response = await this.client.messages.parse({
-      model: call.model,
-      max_tokens: call.maxTokens ?? 8000,
-      system: call.system,
-      messages: [{ role: "user", content: call.user }],
-      output_config: { format: zodOutputFormat(call.schema) },
-    });
-    const tokensIn = response.usage.input_tokens;
-    const tokensOut = response.usage.output_tokens;
-    const cost = costMicros(call.model, tokensIn, tokensOut);
-    if (response.stop_reason === "refusal" || response.parsed_output === null || response.parsed_output === undefined) {
-      await logRun(this.db, call, { output: null, errors: [{ stop_reason: response.stop_reason }], tokensIn, tokensOut, cost, model: call.model });
-      throw new Error(`model returned no usable output (${response.stop_reason})`);
+    const format = zodOutputFormat(call.schema);
+    let complaints: string[] | null = null;
+    let previousAnswer: string | null = null;
+    let lastRunId = "";
+    let totalCost = 0;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      // The retry carries the first answer as the assistant's own turn, so "keep everything else" has something to keep.
+      const messages: { role: "user" | "assistant"; content: string }[] = [{ role: "user", content: call.user }];
+      if (complaints && previousAnswer !== null) {
+        messages.push({ role: "assistant", content: previousAnswer });
+        messages.push({ role: "user", content: `That answer was rejected for these reasons; fix every one and keep everything else:\n${complaints.map((c) => `- ${c}`).join("\n")}` });
+      }
+      const response = await this.messages.create({
+        model: call.model,
+        max_tokens: call.maxTokens ?? 8000,
+        system: call.system,
+        messages,
+        output_config: { format },
+      });
+      const tokensIn = response.usage.input_tokens;
+      const tokensOut = response.usage.output_tokens;
+      const cost = costMicros(call.model, tokensIn, tokensOut);
+      totalCost += cost;
+      const text = response.content.find((b) => b.type === "text")?.text ?? null;
+      let raw: unknown = null;
+      try {
+        raw = text === null ? null : JSON.parse(text);
+      } catch {
+        raw = null;
+      }
+      if (response.stop_reason === "refusal" || raw === null) {
+        await logRun(this.db, call, { output: null, errors: [{ stop_reason: response.stop_reason, text: text?.slice(0, 500) ?? null }], tokensIn, tokensOut, cost, model: call.model });
+        throw new Error(`model returned no usable output (${response.stop_reason})`);
+      }
+      const parsed = call.schema.safeParse(raw);
+      if (parsed.success) {
+        const runId = await logRun(this.db, call, { output: parsed.data, tokensIn, tokensOut, cost, model: call.model });
+        return { data: parsed.data, runId, isMock: false, costMicros: totalCost };
+      }
+      complaints = issueLines(parsed.error.issues as { path: PropertyKey[]; message: string }[]);
+      previousAnswer = text;
+      lastRunId = await logRun(this.db, call, { output: raw as Record<string, unknown>, errors: parsed.error.issues, tokensIn, tokensOut, cost, model: call.model });
     }
-    const parsed = call.schema.safeParse(response.parsed_output);
-    if (!parsed.success) {
-      await logRun(this.db, call, { output: response.parsed_output, errors: parsed.error.issues, tokensIn, tokensOut, cost, model: call.model });
-      throw new Error("model output failed validation");
-    }
-    const runId = await logRun(this.db, call, { output: parsed.data, tokensIn, tokensOut, cost, model: call.model });
-    return { data: parsed.data, runId, isMock: false, costMicros: cost };
+    throw new AiOutputInvalid(String(call.fn), complaints ?? [], lastRunId);
   }
 }
 

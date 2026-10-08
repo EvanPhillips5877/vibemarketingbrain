@@ -7,7 +7,7 @@ import { attachSession, requireCsrf } from "./auth/middleware.js";
 import { authRouter } from "./auth/routes.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db/client.js";
-import { aiClientFor, type AiClient } from "./ai/client.js";
+import { aiClientFor, AiOutputInvalid, type AiClient } from "./ai/client.js";
 import { AdapterRegistry } from "./channels/registry.js";
 import { brandsRouter } from "./routes/brands.js";
 import { analysisRouter } from "./routes/analysis.js";
@@ -86,6 +86,10 @@ export function createApp(deps: AppDeps): Express {
     // Never echo the error: it may carry a token or a connection string.
     console.error(err);
     if (res.headersSent) return;
+    if (err instanceof AiOutputInvalid) {
+      res.status(422).json({ error: `The model could not stay within the platform limits after a retry (${err.fn}). ${err.issues.slice(0, 3).join("; ")}` });
+      return;
+    }
     res.status(500).json({ error: "internal error" });
   };
   app.use(onError);

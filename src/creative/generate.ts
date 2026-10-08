@@ -70,7 +70,7 @@ export function mockHooks(h: Hypothesis, learnings: Learning[] = []): Hooks {
 
 const VARIANT_SYSTEM = (format: Format) => {
   const spec = FORMAT_SPECS[format];
-  const limits = spec.textFields.map((f) => `- ${f.name}: at most ${f.maxChars} characters${f.min ? `, ${f.min} to ${f.max} items` : ""}`).join("\n");
+  const limits = spec.textFields.map((f) => `- ${f.name}: at most ${f.maxChars} characters including spaces and punctuation${f.min ? `, ${f.min} to ${f.max} items` : ""}`).join("\n");
   return `You write ${format === "meta_image" ? "a Meta image ad" : "a Google responsive search ad"} for a small B2B software brand, from a hook.
 Hard limits (the ad is rejected otherwise):
 ${limits}
