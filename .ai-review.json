@@ -10,7 +10,7 @@
     { "category": "secrets-config-ci-infra", "paths": [".github/**", "Dockerfile", ".dockerignore", ".env.example", "package.json", "pnpm-lock.yaml", "src/index.ts", "src/config.ts", ".ai-review.json"] },
     { "category": "background-jobs-and-concurrency", "paths": ["src/jobs/**"] },
     { "category": "ad-spend-and-actions", "paths": ["src/actions/**", "src/channels/**", "src/ingest/**"] },
-    { "category": "untrusted-input-and-ai", "paths": ["src/ai/**", "src/brands/crawler.ts", "src/brands/extract.ts", "src/creative/**", "src/missions/**"] }
+    { "category": "untrusted-input-and-ai", "paths": ["src/ai/**", "src/brands/crawler.ts", "src/brands/extract.ts", "src/creative/**", "src/missions/**", "src/routes/command.ts"] }
   ],
   "sensitiveContent": [
     { "category": "auth", "regex": "requireUser|requireCsrf|attachSession|mb_session|csrfToken|allowedEmails" },

@@ -21,6 +21,8 @@ export const MODELS = {
   creative: "claude-sonnet-5-5",
   analyst: "claude-opus-5-5",
   strategist: "claude-opus-5-5",
+  command: "claude-sonnet-5-5",
+  commandWhy: "claude-opus-5-5",
 } as const;
 
 // USD per million tokens (input, output). Cost is tracked in USD micros.

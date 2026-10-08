@@ -3,9 +3,9 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { executeApproved } from "../src/actions/executor.js";
 import { approve, listProposals } from "../src/actions/proposals.js";
-import { seedMockChannelAccount, seedTryoutBrain } from "../src/brands/seed-tryoutbrain.js";
+import { seedMockChannelAccount, seedTryoutBrain, TRYOUTBRAIN_POLICY_V1 } from "../src/brands/seed-tryoutbrain.js";
 import { AdapterRegistry } from "../src/channels/registry.js";
-import { actionProposals, brands, customerEvents, experiments, extObjects, hypotheses, learnings, metricsDaily, missions, type Brand, type ChannelAccount, type Mission } from "../src/db/schema.js";
+import { actionProposals, autonomyPolicies, brands, customerEvents, experiments, extObjects, hypotheses, learnings, metricsDaily, missions, type Brand, type ChannelAccount, type Mission } from "../src/db/schema.js";
 import { syncStructure } from "../src/ingest/structure.js";
 import { experimentLedger, linkCreatedObjects, missionProgress } from "../src/missions/ledger.js";
 import { mockParse } from "../src/missions/parse.js";
@@ -82,6 +82,10 @@ describe("missions (db, mock AI and adapter)", () => {
     await db.delete(learnings).where(eq(learnings.brandId, r.brandId));
     await db.delete(extObjects).where(and(eq(extObjects.channelAccountId, account.id), like(extObjects.name, "%[mb:%")));
     brand = (await db.select().from(brands).where(eq(brands.id, r.brandId)))[0]!;
+    // The mock account spends more per day than the seeded CAD 1,500/month policy allows, so the
+    // engine would block every new campaign; this file tests missions, not that rule.
+    await db.delete(autonomyPolicies).where(and(eq(autonomyPolicies.brandId, brand.id), eq(autonomyPolicies.version, 99)));
+    await db.insert(autonomyPolicies).values({ brandId: brand.id, version: 99, level: TRYOUTBRAIN_POLICY_V1.level, rules: { ...TRYOUTBRAIN_POLICY_V1.rules, monthlyBudgetMicros: 10_000_000_000 }, createdBy: "manual:test" });
     await syncStructure(db, registry.mockAdapter, account);
     ({ cookie, csrf } = await devLogin(ctx.app, "evan@example.com"));
   });
@@ -96,6 +100,7 @@ describe("missions (db, mock AI and adapter)", () => {
     await db.delete(learnings).where(eq(learnings.createdBy, "job:mission-progress"));
     const hyps = await db.select({ id: hypotheses.id }).from(hypotheses).where(sql`${hypotheses.missionId} in (select id from missions where brand_id = ${brand.id})`);
     await db.delete(missions).where(eq(missions.brandId, brand.id)); // experiments cascade; they hold the hypotheses
+    await db.delete(autonomyPolicies).where(and(eq(autonomyPolicies.brandId, brand.id), eq(autonomyPolicies.version, 99)));
     for (const h of hyps) await db.delete(hypotheses).where(eq(hypotheses.id, h.id));
     await ctx.handle.close();
   });

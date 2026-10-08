@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { api, type Me } from "../api";
+import { CommandBar } from "../components/CommandBar";
 
 const NAV: { href: string; label: string }[] = [
   { href: "/", label: "Today" },
@@ -47,7 +48,10 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
           </button>
         </div>
       </aside>
-      <main className="flex-1 px-4 py-6 md:px-8">{children}</main>
+      <main className="flex-1 px-4 py-6 md:px-8">
+        <CommandBar />
+        {children}
+      </main>
     </div>
   );
 }
