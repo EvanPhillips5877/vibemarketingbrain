@@ -1,0 +1,21 @@
+name: Deploy
+# Push to main deploys to Fly. Kept short and capped: the free Actions
+# minutes are shared by every repo. The image is built on Fly's builders
+# (--remote-only), so this runner only talks to the Fly API.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

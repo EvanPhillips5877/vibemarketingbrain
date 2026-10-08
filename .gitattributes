@@ -1,0 +1,4 @@
+# Files that run inside the Linux image must keep LF endings whatever the
+# Windows checkout does to the rest.
+*.sh text eol=lf
+Dockerfile text eol=lf
