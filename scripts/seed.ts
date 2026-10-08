@@ -8,7 +8,9 @@ import { syncStructure } from "../src/ingest/structure.js";
 
 // pnpm run seed — safe to re-run. Seeds the brand and, outside production,
 // a mock ad account with 28 days of pretend performance so every screen has
-// something to show.
+// something to show. In production the mock account is opt-in:
+// SEED_MOCK_ACCOUNT=true adds it (clearly labelled "mock" on every screen)
+// until real ad accounts exist.
 loadDotEnv();
 const config = loadConfig();
 const handle = createDb(config.databaseUrl);
@@ -17,7 +19,10 @@ try {
   console.log(
     `TryoutBrain ${r.brandId}: ${r.factsInserted} fact(s) inserted, policy v${r.policyVersion}${r.policyInserted ? " created" : " already present"}`,
   );
-  if (!config.isProduction) {
+  const wantMock = !config.isProduction || process.env["SEED_MOCK_ACCOUNT"] === "true";
+  if (!wantMock) {
+    console.log("production: no mock ad account (set SEED_MOCK_ACCOUNT=true to add one)");
+  } else {
     const account = await seedMockChannelAccount(handle.db, r.brandId);
     const adapter = new AdapterRegistry(config).get("mock")!;
     const s = await syncStructure(handle.db, adapter, account);

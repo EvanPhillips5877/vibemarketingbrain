@@ -1,44 +1,42 @@
-# Fly.io app definition. One small machine in Toronto, never scaled to zero
-# (the scheduler runs the morning sync and the executor), with a volume for
-# rendered creative assets. Secrets are set with `fly secrets set`, never here.
+# fly.toml app configuration file generated for vibemarketingbrain on 2026-10-08T08:32:45-05:00
 #
-# `app` must match the app you create with `fly launch` (see docs/DEPLOY.md).
-app = "vibemarketingbrain"
-primary_region = "yyz"
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'vibemarketingbrain'
+primary_region = 'yyz'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [deploy]
-  # Migrations run once per release, before the new machine takes traffic.
-  release_command = "node_modules/.bin/tsx src/db/migrate.ts"
-  strategy = "immediate"
+  strategy = 'immediate'
+  release_command = 'node_modules/.bin/tsx src/db/migrate.ts'
 
 [env]
-  NODE_ENV = "production"
-  PORT = "5100"
-  JOBS_ENABLED = "true"
+  JOBS_ENABLED = 'true'
+  NODE_ENV = 'production'
+  PORT = '5100'
+
+[[mounts]]
+  source = 'data'
+  destination = '/app/data'
+  initial_size = '1gb'
 
 [http_service]
   internal_port = 5100
   force_https = true
-  # The scheduler must keep running between requests.
-  auto_stop_machines = "off"
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
   [[http_service.checks]]
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "20s"
-    method = "GET"
-    path = "/health"
-
-[[mounts]]
-  source = "data"
-  destination = "/app/data"
-  initial_size = "1gb"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '20s'
+    method = 'GET'
+    path = '/health'
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "1gb"
+  size = 'shared-cpu-1x'
+  memory = '1gb'

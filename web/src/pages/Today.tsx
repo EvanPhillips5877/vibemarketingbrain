@@ -36,9 +36,10 @@ export function Today() {
     queryFn: () => api<TodayResponse>(`/api/brands/${brand!.slug}/today?days=${days}`),
   });
   const sync = useMutation({
-    mutationFn: () => api(`/api/brands/${brand!.slug}/sync`, { method: "POST" }),
+    mutationFn: () => api<{ accounts: { channel: string; isMock: boolean; objects: number; metricRows: number }[] }>(`/api/brands/${brand!.slug}/sync`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries(),
   });
+  const syncNote = sync.isError ? sync.error.message : sync.data ? (sync.data.accounts.length === 0 ? "No ad accounts are connected yet, so there was nothing to sync." : `Synced ${sync.data.accounts.map((a) => `${a.channel}: ${a.objects} objects, ${a.metricRows} metric rows`).join("; ")}.`) : null;
 
   if (brandPending) return <p className="text-sm text-neutral-500">Loading…</p>;
   if (!brand) return <p className="text-sm text-neutral-500">No brand yet. Run `pnpm run seed`.</p>;
@@ -68,6 +69,7 @@ export function Today() {
           >
             {sync.isPending ? "Syncing…" : "Sync now"}
           </button>
+          {syncNote && <span className={`text-xs ${sync.isError ? "text-red-600" : "text-neutral-500"}`}>{syncNote}</span>}
         </div>
       </div>
       {sync.isError && <p className="mt-2 text-sm text-red-600">Sync failed: {sync.error.message}</p>}

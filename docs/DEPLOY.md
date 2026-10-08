@@ -21,8 +21,10 @@ before pressing Enter.
 
 - **Fly.io**: sign up at fly.io, add a payment method (required even on
   the pay-as-you-go plan).
-- **Neon**: sign up at neon.tech. Create a project named `marketingbrain`
-  in region **AWS Canada (ca-central-1)**, Postgres 16. Copy the
+- **Neon**: sign up at neon.tech. Create a project named `marketingbrain`,
+  Postgres 16. Neon has no Canadian region; **US East (Ohio)** was chosen
+  on 2026-10-08 because this is a personal tool holding ad metrics and
+  org-level ids, never people. Copy the
   **direct** connection string, not the pooled one: the host must **not**
   contain `-pooler`. The job scheduler needs a session-level connection
   (advisory locks and LISTEN/NOTIFY), which Neon's pooler does not give.
@@ -137,11 +139,18 @@ to Today with no brand yet.
 
 ## 7. Seed the brand
 
-Runs the same seed as local dev (TryoutBrain brand, facts, policy, and a
-mock ad account so the screens have something to show):
+Creates the TryoutBrain brand, its facts and policy:
 
 ```powershell
 fly ssh console -C "node_modules/.bin/tsx scripts/seed.ts"
+```
+
+Until real ad accounts exist, add the mock ad account too (every screen
+labels its numbers as mock; it is one `channel_accounts` row you can delete
+later):
+
+```powershell
+fly ssh console -C "env SEED_MOCK_ACCOUNT=true node_modules/.bin/tsx scripts/seed.ts"
 ```
 
 Reload Today. From here the morning job runs at 06:00 (machine time is
@@ -183,4 +192,4 @@ push, and on pull requests in CI, never on push (Actions minutes).
 
 - The AI still only proposes; the executor still creates everything PAUSED.
 - Secrets live in Fly's secret store, never in the image, the database or logs.
-- Data stays in Canada: Neon in ca-central-1, the app in Toronto.
+- The app runs in Toronto; the database is in Neon US East (Ohio), a deliberate exception to the Canada rule for this personal tool.
