@@ -19,6 +19,10 @@ RUN pnpm prune --prod
 FROM node:24-bookworm-slim
 ENV NODE_ENV=production
 ENV PORT=5100
+# Creative cards are SVG text rendered by sharp, which needs fontconfig and
+# a font. Liberation matches Arial and Georgia by metric, so the layout
+# the tests measured locally is the layout production draws.
+RUN apt-get update && apt-get install -y --no-install-recommends fontconfig fonts-liberation && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
