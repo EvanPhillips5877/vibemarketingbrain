@@ -238,6 +238,26 @@ export async function seedTryoutBrain(db: Db, actor = "system:seed"): Promise<Se
 }
 
 /** A pretend ad account on the mock channel, so the loop runs end to end with no credentials. Idempotent. */
+/**
+ * The brand's real Meta ad account. The token stays in the environment under
+ * META_ACCESS_TOKEN; the row only records that name. Currency and timezone
+ * come from the caller, who reads them from the platform when it can.
+ */
+export async function seedMetaChannelAccount(db: Db, brandId: string, adAccountId: string, meta: { currency: string; timezone: string }): Promise<ChannelAccount> {
+  const externalAccountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
+  await db
+    .insert(channelAccounts)
+    .values({ brandId, channel: "meta", externalAccountId, currency: meta.currency, timezone: meta.timezone, secretRef: "META_ACCESS_TOKEN" })
+    .onConflictDoUpdate({ target: [channelAccounts.brandId, channelAccounts.channel, channelAccounts.externalAccountId], set: { currency: meta.currency, timezone: meta.timezone, secretRef: "META_ACCESS_TOKEN", status: "active" } });
+  const [row] = await db
+    .select()
+    .from(channelAccounts)
+    .where(and(eq(channelAccounts.brandId, brandId), eq(channelAccounts.channel, "meta"), eq(channelAccounts.externalAccountId, externalAccountId)))
+    .limit(1);
+  if (!row) throw new Error("meta channel account missing after insert");
+  return row;
+}
+
 export async function seedMockChannelAccount(db: Db, brandId: string): Promise<ChannelAccount> {
   const externalAccountId = "mock-tryoutbrain";
   await db

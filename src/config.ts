@@ -16,6 +16,9 @@ const envSchema = z.object({
   JOBS_ENABLED: z.enum(["true", "false"]).default("false"),
   ANTHROPIC_API_KEY: z.string().optional(),
   META_ACCESS_TOKEN: z.string().optional(),
+  META_AD_ACCOUNT_ID: z.string().optional(),
+  META_PAGE_ID: z.string().optional(),
+  META_API_VERSION: z.string().regex(/^v\d+\.\d+$/).default("v21.0"),
   GOOGLE_ADS_DEVELOPER_TOKEN: z.string().optional(),
   GOOGLE_ADS_REFRESH_TOKEN: z.string().optional(),
 });
@@ -37,6 +40,8 @@ export interface Config {
   mock: { ai: boolean; meta: boolean; googleAds: boolean };
   /** Present only when AI is live. Never logged, never sent to the client. */
   anthropicApiKey: string | undefined;
+  /** Identifiers only, never the token: the ad account the Meta adapter syncs, the Page ads run from, the pinned API version. */
+  meta: { adAccountId: string | null; pageId: string | null; apiVersion: string };
 }
 
 function present(value: string | undefined): value is string {
@@ -86,5 +91,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       googleAds: !(present(e.GOOGLE_ADS_DEVELOPER_TOKEN) && present(e.GOOGLE_ADS_REFRESH_TOKEN)),
     },
     anthropicApiKey: present(e.ANTHROPIC_API_KEY) ? e.ANTHROPIC_API_KEY : undefined,
+    meta: {
+      adAccountId: present(e.META_AD_ACCOUNT_ID) ? (e.META_AD_ACCOUNT_ID.startsWith("act_") ? e.META_AD_ACCOUNT_ID : `act_${e.META_AD_ACCOUNT_ID}`) : null,
+      pageId: present(e.META_PAGE_ID) ? e.META_PAGE_ID : null,
+      apiVersion: e.META_API_VERSION,
+    },
   };
 }

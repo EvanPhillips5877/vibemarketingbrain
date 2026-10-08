@@ -1,5 +1,6 @@
 import { aiClientFor } from "./ai/client.js";
 import { createApp } from "./app.js";
+import { MetaAdapter } from "./channels/meta/index.js";
 import { AdapterRegistry } from "./channels/registry.js";
 import { loadConfig } from "./config.js";
 import { createDb } from "./db/client.js";
@@ -10,6 +11,9 @@ loadDotEnv();
 const config = loadConfig();
 const handle = createDb(config.databaseUrl);
 const registry = new AdapterRegistry(config);
+// A real adapter is registered only when its credentials exist; the
+// registry hands out the mock otherwise, flagged as such everywhere.
+if (!config.mock.meta) registry.register(new MetaAdapter({ version: config.meta.apiVersion }));
 const ai = aiClientFor(handle.db, config.anthropicApiKey);
 const app = createApp({ config, db: handle.db, registry, ai });
 

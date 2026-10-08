@@ -99,14 +99,22 @@ To make the random value for the second line:
 -join ((1..48) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })
 ```
 
-Optional lines, each turning a mock into the real thing (Meta and Google
-Ads tokens are Phases 4 and 5; leave them out until then):
+Optional lines, each turning a mock into the real thing (Google Ads tokens
+are Phase 5; leave them out until then):
 
 ```
 ANTHROPIC_API_KEY=PASTE_ANTHROPIC_KEY
 TRYOUTBRAIN_EXPORT_URL=https://tryoutbrain.com/api/internal/marketing/events
 TRYOUTBRAIN_EXPORT_TOKEN=PASTE_ROTATED_TRYOUTBRAIN_TOKEN
+META_ACCESS_TOKEN=PASTE_META_SYSTEM_USER_TOKEN
+META_AD_ACCOUNT_ID=act_1082877204521539
+META_PAGE_ID=1361698740353589
 ```
+
+The Meta ad account id and Page id are identifiers, not secrets; the token
+is. After the Meta lines are set, re-run the seed (step 7): it records the
+account row with the currency and timezone Meta reports and mirrors the
+account's structure. Reads only until Phase 12.
 
 Save, close Notepad, then load the file into Fly and delete it:
 

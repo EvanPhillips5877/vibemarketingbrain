@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { AccountRef, ChannelAdapter } from "../src/channels/adapter.js";
 import { redact } from "../src/channels/adapter.js";
+import { MetaAdapter } from "../src/channels/meta/index.js";
 import { MockAdapter } from "../src/channels/mock/index.js";
+import { fakeGraph } from "./meta.fixture.js";
 import { adapterCommandSchema } from "../src/domain/actions.js";
 
 // Every adapter must pass this. Meta and Google join the list when they
@@ -11,6 +13,11 @@ const ADAPTERS: { name: string; make: () => ChannelAdapter; account: AccountRef 
     name: "mock",
     make: () => new MockAdapter(),
     account: { id: "00000000-0000-0000-0000-000000000001", channel: "mock", externalAccountId: "acct-test", currency: "CAD", timezone: "America/Toronto", secretRef: null },
+  },
+  {
+    name: "meta (recorded fixtures)",
+    make: () => new MetaAdapter({ fetchImpl: fakeGraph().fetchImpl, sleep: async () => {}, env: { META_TEST_TOKEN: "EAAtest-not-a-real-token" } }),
+    account: { id: "00000000-0000-0000-0000-000000000003", channel: "meta", externalAccountId: "act_1082877204521539", currency: "CAD", timezone: "America/Toronto", secretRef: "META_TEST_TOKEN" },
   },
 ];
 
@@ -163,6 +170,7 @@ describe.each(ADAPTERS)("adapter contract: $name", ({ make, account }) => {
 
   it("isolates state between channels that share an external account id", async () => {
     const a = make();
+    if (!a.capabilities.has("pause_activate")) return;
     const other: AccountRef = { ...account, id: "00000000-0000-0000-0000-000000000002", channel: account.channel === "mock" ? "meta" : "mock" };
     const campaign = (await collect(a.syncStructure(account))).find((o) => o.kind === "campaign" && o.status === "ACTIVE")!;
     await a.execute(account, { type: "PAUSE_AD", kind: "campaign", externalId: campaign.externalId });
