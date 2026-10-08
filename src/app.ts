@@ -14,6 +14,7 @@ import { analysisRouter } from "./routes/analysis.js";
 import { creativeRouter } from "./routes/creative.js";
 import { missionsRouter } from "./routes/missions.js";
 import { commandRouter } from "./routes/command.js";
+import { learningsRouter } from "./routes/learnings.js";
 import { factsRouter } from "./routes/facts.js";
 import { proposalsRouter } from "./routes/proposals.js";
 import { meRouter } from "./routes/me.js";
@@ -61,6 +62,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(creativeRouter(db, ai));
   app.use(missionsRouter(db, ai));
   app.use(commandRouter(db, ai));
+  app.use(learningsRouter(db));
 
   app.all("/api/{*rest}", (_req, res) => {
     res.status(404).json({ error: "not found" });

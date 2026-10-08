@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { AiClient } from "../ai/client.js";
 import { propose, type ProposeResult } from "../actions/proposals.js";
 import { renderBrief } from "../brands/brief.js";
+import { relevantLearnings } from "../learnings/distill.js";
 import { checkCopy, type ComplianceResult } from "../brands/compliance.js";
 import { listFacts } from "../brands/facts.js";
 import type { Db } from "../db/client.js";
@@ -54,8 +55,9 @@ export async function generateForHypothesis(db: Db, ai: AiClient, brand: Brand, 
   const facts = await listFacts(db, brand.id);
   const brief = renderBrief(brand.name, brand.website, facts);
   const screenshot = await pickScreenshot(db, brand.id);
+  const learned = await relevantLearnings(db, brand.id, h.dimensions);
 
-  const generated = await generateHooks(ai, brand, brief, h);
+  const generated = await generateHooks(ai, brand, brief, h, learned);
   let isMock = generated.isMock;
   let creativeCount = 0;
   let variantCount = 0;
@@ -68,7 +70,7 @@ export async function generateForHypothesis(db: Db, ai: AiClient, brand: Brand, 
     creativeCount++;
     for (const format of formats) {
       for (let seed = 0; seed < perHook; seed++) {
-        const v = await generateVariant(ai, brand, brief, hk, h, format, seed);
+        const v = await generateVariant(ai, brand, brief, hk, h, format, seed, learned);
         isMock = isMock || v.isMock;
         const payload = parsePayload(format, v.payload);
         const compliance = checkCopy(copyOf(format, payload).join("\n"), facts);
@@ -100,7 +102,7 @@ export async function generateForHypothesis(db: Db, ai: AiClient, brand: Brand, 
     }
   }
   await db.update(hypotheses).set({ status: "testing" }).where(and(eq(hypotheses.id, h.id), eq(hypotheses.status, "untested")));
-  await db.insert(auditEvents).values({ actor: opts.actor ?? "system:factory", verb: "creatives_generated", subject: `hypothesis:${h.id}`, data: { brandId: brand.id, hooks: generated.hooks.hooks.length, creatives: creativeCount, variants: variantCount, nonCompliant, isMock } });
+  await db.insert(auditEvents).values({ actor: opts.actor ?? "system:factory", verb: "creatives_generated", subject: `hypothesis:${h.id}`, data: { brandId: brand.id, hooks: generated.hooks.hooks.length, creatives: creativeCount, variants: variantCount, nonCompliant, isMock, learningsRead: learned.map((l) => l.id) } });
   return { hypothesisId: h.id, hooks: generated.hooks.hooks.length, creatives: creativeCount, variants: variantCount, nonCompliant, rendered, isMock };
 }
 

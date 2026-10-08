@@ -4,6 +4,7 @@ import { executeApproved, reconcileUnknown } from "../actions/executor.js";
 import { expireStale } from "../actions/proposals.js";
 import { analyzeAllBrands } from "../analytics/morning.js";
 import { progressAllBrands } from "../missions/progressAll.js";
+import { distillAllBrands } from "../learnings/distill.js";
 import type { AdapterRegistry } from "../channels/registry.js";
 import type { Db } from "../db/client.js";
 import { syncAllBrands } from "../ingest/sync.js";
@@ -51,6 +52,8 @@ export async function startJobs(connectionString: string, db: Db, registry: Adap
   await schedule("execute-approved", "*/5 * * * *", async () => ({ expired: await expireStale(db), reconciled: await reconcileUnknown(db, registry), executed: await executeApproved(db, registry) }));
   // Weekly: platforms restate up to four weeks back.
   await schedule("sync-weekly", "30 5 * * 1", () => syncAllBrands(db, registry, { metricDays: 28, actor: "system:sync-weekly" }));
+  // Monday, after the 28-day restatement: what the last four weeks of ads say, by creative element.
+  await schedule("learn-weekly", "45 5 * * 1", () => distillAllBrands(db));
 
   return boss;
 }

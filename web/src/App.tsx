@@ -5,6 +5,7 @@ import { BrandList, BrandPage } from "./pages/Brands";
 import { Campaigns } from "./pages/Campaigns";
 import { Creative } from "./pages/Creative";
 import { Missions } from "./pages/Missions";
+import { Learnings } from "./pages/Learnings";
 import { Today } from "./pages/Today";
 import { Placeholder } from "./pages/Placeholder";
 import { Settings } from "./pages/Settings";
@@ -47,7 +48,7 @@ export function App() {
           <Campaigns />
         </Route>
         <Route path="/learnings">
-          <Placeholder title="Learnings" blurb="What MarketingBrain has learned, with the evidence." />
+          <Learnings />
         </Route>
         <Route path="/brands">
           <BrandList />
